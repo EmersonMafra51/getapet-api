@@ -95,13 +95,17 @@ module.exports = class UserController {
     }
 
     // check if user exists
-    const user = await User.findOne({ email: email });
+    const user = await User.findOne({ email: email }).select('+password');
 
     if (!user) {
       return res
         .status(422)
         .json({ message: "Não há usuário cadastrado com este e-mail!" });
     }
+
+    console.log("Senha recebida:", password);
+console.log("Senha do banco:", user.password);
+console.log("Tipo:", typeof user.password);
 
     // check if password match
     const checkPassword = await bcrypt.compare(password, user.password);

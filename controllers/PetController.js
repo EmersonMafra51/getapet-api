@@ -22,28 +22,28 @@ module.exports = class PetConroller {
 
     // validations
     if (!name) {
-      res.status(422).json({ message: 'O nome é obrigatório!' })
-      return
+     return res.status(422).json({ message: 'O nome é obrigatório!' })
+      
     }
 
     if (!age) {
-      res.status(422).json({ message: 'A idade é obrigatória!' })
-      return
+        return res.status(422).json({ message: 'A idade é obrigatória!' })
+    
     }
 
     if (!weight) {
-      res.status(422).json({ message: 'O peso é obrigatório!' })
-      return
+     return res.status(422).json({ message: 'O peso é obrigatório!' })
+      
     }
 
     if (!color) {
-      res.status(422).json({ message: 'A cor é obrigatória!' })
-      return
+      return res.status(422).json({ message: 'A cor é obrigatória!' })
+     
     }
 
     if (!images.length === 0) {
-      res.status(422).json({ message: 'A imagem é obrigatória!' })
-      return
+     return res.status(422).json({ message: 'A imagem é obrigatória!' })
+      
     }
 
     // get user
@@ -118,15 +118,15 @@ module.exports = class PetConroller {
     const id = req.params.id
 
     if(!ObjetcId.isValid(id)){
-       res.status(422).json({message: 'ID inválido!!!'})
-      return
+       return res.status(422).json({message: 'ID inválido!!!'})
+     
     }
 
     //CHECK IF PETS EXISTS
     const pet = await  Pet.findOne({_id: id})
 
     if(!pet){
-      res.status(404).json({message: 'Pet não encontrado!!!'})
+     return res.status(404).json({message: 'Pet não encontrado!!!'})
     }
 
     res.status(200).json({pet: pet})
@@ -141,8 +141,8 @@ module.exports = class PetConroller {
 
     //CHECK IF ID IS VALID
     if(!ObjetcId.isValid(id)){
-      res.status(422).json({message: 'ID inválido!!!'})
-      return
+        return res.status(422).json({message: 'ID inválido!!!'})
+    
 
     }
 
@@ -150,8 +150,8 @@ module.exports = class PetConroller {
     const pet = await Pet.findOne({_id: id })
 
     if(!pet){
-      res.status(404).json({message: 'Pet não encontrado!!!'})
-      return
+      return  res.status(404).json({message: 'Pet não encontrado!!!'})
+    
     }
 
     //CHECK LOGGED IN USER REGISTERED THE PET
@@ -278,21 +278,60 @@ module.exports = class PetConroller {
 
       //CHECK IF USER REGISTERED THE PET
       const token = getToken(req)
-      const user = getUserByToken(token)
-
-      if(pet.user._id.equals(user._id)){
-        return res.status(422).json({message:'Você não pode agendar uma visita com seu próprio pet!!'})
+      const user =  await getUserByToken(token)
+      
+      if (pet.user._id.toString() === user._id.toString()) {
+       return res.status(422).json({ message: "Você não pode agendar uma visita com seu próprio pet." });
       }
 
+      //CHECK IF USER HAS ALREADY SCHEDULED A VISIT
+      if(pet.adopter){
+        if(pet.adopter._id.equals(user.id)){
+          return res.status(422).json({message: 'Você já agendou uma visita para este pet!!!'})
+        }
+      }
+
+      // ADD USERT TO PET
+      pet.adopter = {
+        _id: user._id,
+        name: user.name,
+        image: user.image
+      }
+
+    await Pet.findByIdAndUpdate(id, pet)
+
+    return res.status(200).json({message: `Sua visita foi agendada com sucesso!! Por favor, entre em contato com ${pet.user.name} pelo telefone ${pet.user.phone}`})
 
 
-    
+
   }
 
+  static async concludeAdoption(req, res){
 
+    const id = req.params.id
+
+    //CHECK IF EXISTS
+    const  pet =  await Pet.findOne({_id: id})
+
+    if(!pet){
+      return res.status(404).json({message: 'Pet não encontrado!!!'})
+    }
+
+    const token = getToken(req)
+    const user = await getUserByToken(token)
+
+    if(pet.user._id.toString() !== user._id.toString()){
+      return res.status(422).json({message:'Houve um problema em processar a sua solicitação.Tente novamente mais tarde!!!'})
+    }
+
+    pet.avaliable = false
+
+    await Pet.findByIdAndUpdate(id, pet)
+
+    return res.status(200).json({message: 'Parabéns. O ciclo de adodação foi concluído com sucesso!!!'})
 
   }
 
 
   
-  
+  }
