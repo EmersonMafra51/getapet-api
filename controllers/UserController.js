@@ -148,80 +148,63 @@ console.log("Tipo:", typeof user.password);
     res.status(422).json({ user });
   }
 
-  static async editUser(req, res) {
-    const token = getToken(req);
+ static async editUser(req, res) {
+  const token = getToken(req);
+  const user = await getUserByToken(token);
 
-    const user = await getUserByToken(token);
+  const { name, email, phone, password, confirmpassword } = req.body;
 
-    const name = req.body.name;
-    const email = req.body.email;
-    const phone = req.body.phone;
-    const password = req.body.password;
-    const confirmpassword = req.body.confirmpassword;
-
-    let image = " ";
-
-    if (req.file) {
-      image = req.file.filename;
-    }
-
-    //VALIDATIONS
-    if (!email) {
-      res.status(422).json({ message: "O e-mail é obrigatório!!!" });
-      return;
-    }
-
-    //CHECK USER EXISTS
-    if (user.email !== email && userExists) {
-      res
-        .status(422)
-        .json({
-          message: "E-mail já cadastrado!!Por favor utilize outro e-mail",
-        });
-      return;
-    }
-
-    user.email = email;
-
-    if (image) {
-      const imageName = req.file.filename;
-      user.image = imageName;
-    }
-
-    if (!phone) {
-      res.status(422).json({ message: "O telefone é obrigatório!!!" });
-      return;
-    }
-
-    user.phone = phone;
-
-    //CHECK IF PASSOWRD MATCH
-    if (password != confirmpassword) {
-      res.status(422).json({ message: "As senhas não conferem!!!" });
-    } else if (password === confirmpassword && password != null) {
-      //CREATING PASSWORD
-      const salt = await bcrypt.genSalt(12);
-      const reqPassword = req.body.password;
-
-      const passwordHash = await bcrypt.hash(reqPassword, salt);
-
-      user.password = passwordHash;
-    }
-
-    try {
-      // RETURN UPDATE DATA
-      const updateUser = await User.findOneAndUpdate(
-        { _id: user._id },
-        { $set: user },
-        { new: true }
-      );
-
-      res.json({
-        message: "Usuário atualizado com sucesso!!!",
-        data: updateUser,
-      });
-    } catch (error) {
-      res.status(500).json({ message: error });
-    }
+  // VALIDATIONS
+  if (!email) {
+    return res.status(422).json({ message: "O e-mail é obrigatório!!!" });
   }
+
+  // CHECK USER EXISTS (email duplicado)
+  const userExists = await User.findOne({ email: email });
+  if (userExists && userExists._id.toString() !== user._id.toString()) {
+    return res.status(422).json({
+      message: "E-mail já cadastrado! Por favor utilize outro e-mail.",
+    });
+  }
+
+  user.email = email;
+
+  if (name) user.name = name;
+
+  if (!phone) {
+    return res.status(422).json({ message: "O telefone é obrigatório!!!" });
+  }
+  user.phone = phone;
+
+  // IMAGE
+  if (req.file) {
+    user.image = req.file.filename;
+  }
+
+  // PASSWORD (só atualiza se veio algo)
+  if (password || confirmpassword) {
+    if (password !== confirmpassword) {
+      return res.status(422).json({ message: "As senhas não conferem!!!" });
+    }
+
+    const salt = await bcrypt.genSalt(12);
+    user.password = await bcrypt.hash(password, salt);
+  }
+
+  try {
+    const updateUser = await User.findOneAndUpdate(
+      { _id: user._id },
+      { $set: user },
+      { new: true }
+    );
+
+    return res.json({
+      message: "Usuário atualizado com sucesso!!!",
+      data: updateUser,
+    });
+  } catch (error) {
+    return res.status(500).json({ message: error });
+  }
+}
+
 };
