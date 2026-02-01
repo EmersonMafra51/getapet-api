@@ -6,6 +6,10 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# uploads
+# uploads (não versionar)
 public/images/users/*
+public/images/pets/*
+
+# manter as pastas no repo
 !public/images/users/.gitkeep
+!public/images/pets/.gitkeep
